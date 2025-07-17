@@ -1,8 +1,8 @@
-// visualization.js (Final Corrected Version)
+// visualization.js (Hardened Version)
 looker.plugins.visualizations.add({
   id: 'single_value_sparkline_avg',
   label: 'Single Value Sparkline (Avg)',
-
+  
   options: {
     sparkline_color: {
       type: 'string',
@@ -16,7 +16,6 @@ looker.plugins.visualizations.add({
       display: 'color',
       default: '#424242'
     }
-    // The 'value_format' option has been removed to use the field's native LookML formatting.
   },
 
   create: function(element, config) {
@@ -65,49 +64,48 @@ looker.plugins.visualizations.add({
     const sparklineMeasureName = queryResponse.fields.measures[0].name;
     const valueMeasureName = queryResponse.fields.measures[1].name;
 
-    // --- Calculate and display the single value ---
-    const valueData = data.map(row => row[valueMeasureName].value);
+    // --- Calculate and display the single value (with ?. for safety) ---
+    const valueData = data.map(row => row[valueMeasureName]?.value);
     const sum = valueData.reduce((acc, val) => acc + (val || 0), 0);
     const average = valueData.length > 0 ? sum / valueData.length : 0;
-
+    
     const valueElement = element.querySelector('.vis-value');
-
-    // --- THIS IS THE FINAL CORRECTED LINE ---
-    // Use the formatter from the second measure's field definition via the 'details' object.
-    // This uses the 'value_format' from your LookML.
-    const valueFormatter = details.valueFormatters[valueMeasureName] || (value => value.toLocaleString());
+    
+    // --- THIS IS THE CORRECTED LINE (using ?.) ---
+    // Safely access the valueFormatter property.
+    const valueFormatter = details.valueFormatters?.[valueMeasureName] || (value => value.toLocaleString());
     valueElement.textContent = valueFormatter(average);
-
+    
     valueElement.style.color = config.value_color;
 
-    // --- Draw the sparkline ---
-    const sparklineData = data.map(row => row[sparklineMeasureName].value);
+    // --- Draw the sparkline (with ?. for safety) ---
+    const sparklineData = data.map(row => row[sparklineMeasureName]?.value).filter(v => v !== null && v !== undefined);
     const svg = element.querySelector('.vis-sparkline-svg');
     svg.innerHTML = '';
 
     if (sparklineData.length > 1) {
-      const width = svg.clientWidth;
-      const height = svg.clientHeight;
-      const padding = 3;
+        const width = svg.clientWidth;
+        const height = svg.clientHeight;
+        const padding = 3;
 
-      const minVal = Math.min(...sparklineData);
-      const maxVal = Math.max(...sparklineData);
-      const valRange = maxVal - minVal;
+        const minVal = Math.min(...sparklineData);
+        const maxVal = Math.max(...sparklineData);
+        const valRange = maxVal - minVal;
 
-      const getX = (i) => (i / (sparklineData.length - 1)) * (width - padding * 2) + padding;
-      const getY = (value) => height - ((value - minVal) / (valRange || 1)) * (height - padding * 2) - padding;
+        const getX = (i) => (i / (sparklineData.length - 1)) * (width - padding * 2) + padding;
+        const getY = (value) => height - ((value - minVal) / (valRange || 1)) * (height - padding * 2) - padding;
 
-      const pathString = sparklineData.map((d, i) => {
-        return (i === 0 ? 'M' : 'L') + `${getX(i)},${getY(d)}`;
-      }).join(' ');
-
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', pathString);
-      path.setAttribute('class', 'sparkline-path');
-      path.style.stroke = config.sparkline_color;
-      svg.appendChild(path);
+        const pathString = sparklineData.map((d, i) => {
+            return (i === 0 ? 'M' : 'L') + `${getX(i)},${getY(d)}`;
+        }).join(' ');
+        
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathString);
+        path.setAttribute('class', 'sparkline-path');
+        path.style.stroke = config.sparkline_color;
+        svg.appendChild(path);
     }
-
+    
     done();
   }
 });
