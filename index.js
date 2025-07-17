@@ -1,10 +1,8 @@
-// visualization.js (Corrected)
+// visualization.js (Final Corrected Version)
 looker.plugins.visualizations.add({
-  // Unique ID and display name for the visualization
   id: 'single_value_sparkline_avg',
   label: 'Single Value Sparkline (Avg)',
-  
-  // Set up the visualization options
+
   options: {
     sparkline_color: {
       type: 'string',
@@ -17,16 +15,10 @@ looker.plugins.visualizations.add({
       label: 'Value Color',
       display: 'color',
       default: '#424242'
-    },
-    value_format: {
-      type: 'string',
-      label: 'Value Format',
-      placeholder: '#,##0.0',
-      default: '#,##0.0'
     }
+    // The 'value_format' option has been removed to use the field's native LookML formatting.
   },
 
-  // Set up the initial HTML structure
   create: function(element, config) {
     element.innerHTML = `
       <style>
@@ -59,11 +51,9 @@ looker.plugins.visualizations.add({
     `;
   },
 
-  // Render the visualization whenever data or settings change
   updateAsync: function(data, element, config, queryResponse, details, done) {
     this.clearErrors();
 
-    // Check for the correct number of fields
     if (queryResponse.fields.dimensions.length !== 1 || queryResponse.fields.measures.length !== 2) {
       this.addError({
         title: 'Incorrect Configuration',
@@ -72,51 +62,52 @@ looker.plugins.visualizations.add({
       return;
     }
 
-    // --- 1. Get field names from queryResponse ---
-    const dimensionName = queryResponse.fields.dimensions[0].name;
-    const sparklineMeasureName = queryResponse.fields.measures[0].name; // First measure for sparkline
-    const valueMeasureName = queryResponse.fields.measures[1].name;     // Second measure for average
+    const sparklineMeasureName = queryResponse.fields.measures[0].name;
+    const valueMeasureName = queryResponse.fields.measures[1].name;
 
-    // --- 2. Calculate and display the single value ---
+    // --- Calculate and display the single value ---
     const valueData = data.map(row => row[valueMeasureName].value);
     const sum = valueData.reduce((acc, val) => acc + (val || 0), 0);
     const average = valueData.length > 0 ? sum / valueData.length : 0;
-    
+
     const valueElement = element.querySelector('.vis-value');
-    
-    // --- THIS IS THE CORRECTED LINE ---
-    valueElement.textContent = looker.visualizationUtils.formatValue(average, config.value_format);
-    
+
+    // --- THIS IS THE FINAL CORRECTED LINE ---
+    // Use the formatter from the second measure's field definition via the 'details' object.
+    // This uses the 'value_format' from your LookML.
+    const valueFormatter = details.valueFormatters[valueMeasureName] || (value => value.toLocaleString());
+    valueElement.textContent = valueFormatter(average);
+
     valueElement.style.color = config.value_color;
 
-    // --- 3. Draw the sparkline ---
+    // --- Draw the sparkline ---
     const sparklineData = data.map(row => row[sparklineMeasureName].value);
     const svg = element.querySelector('.vis-sparkline-svg');
-    svg.innerHTML = ''; // Clear previous sparkline
+    svg.innerHTML = '';
 
     if (sparklineData.length > 1) {
-        const width = svg.clientWidth;
-        const height = svg.clientHeight;
-        const padding = 3;
+      const width = svg.clientWidth;
+      const height = svg.clientHeight;
+      const padding = 3;
 
-        const minVal = Math.min(...sparklineData);
-        const maxVal = Math.max(...sparklineData);
-        const valRange = maxVal - minVal;
+      const minVal = Math.min(...sparklineData);
+      const maxVal = Math.max(...sparklineData);
+      const valRange = maxVal - minVal;
 
-        const getX = (i) => (i / (sparklineData.length - 1)) * (width - padding * 2) + padding;
-        const getY = (value) => height - ((value - minVal) / (valRange || 1)) * (height - padding * 2) - padding;
+      const getX = (i) => (i / (sparklineData.length - 1)) * (width - padding * 2) + padding;
+      const getY = (value) => height - ((value - minVal) / (valRange || 1)) * (height - padding * 2) - padding;
 
-        const pathString = sparklineData.map((d, i) => {
-            return (i === 0 ? 'M' : 'L') + `${getX(i)},${getY(d)}`;
-        }).join(' ');
-        
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', pathString);
-        path.setAttribute('class', 'sparkline-path');
-        path.style.stroke = config.sparkline_color;
-        svg.appendChild(path);
+      const pathString = sparklineData.map((d, i) => {
+        return (i === 0 ? 'M' : 'L') + `${getX(i)},${getY(d)}`;
+      }).join(' ');
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', pathString);
+      path.setAttribute('class', 'sparkline-path');
+      path.style.stroke = config.sparkline_color;
+      svg.appendChild(path);
     }
-    
+
     done();
   }
 });
