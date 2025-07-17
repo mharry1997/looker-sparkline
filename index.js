@@ -1,4 +1,4 @@
-// visualization.js
+// visualization.js (Corrected)
 looker.plugins.visualizations.add({
   // Unique ID and display name for the visualization
   id: 'single_value_sparkline_avg',
@@ -10,13 +10,13 @@ looker.plugins.visualizations.add({
       type: 'string',
       label: 'Sparkline Color',
       display: 'color',
-      default: '#60B17D' // A green similar to your example
+      default: '#60B17D'
     },
     value_color: {
       type: 'string',
       label: 'Value Color',
       display: 'color',
-      default: '#424242' // A dark gray for the text
+      default: '#424242'
     },
     value_format: {
       type: 'string',
@@ -83,7 +83,10 @@ looker.plugins.visualizations.add({
     const average = valueData.length > 0 ? sum / valueData.length : 0;
     
     const valueElement = element.querySelector('.vis-value');
-    valueElement.textContent = looker.formatString(average.toString(), config.value_format || '#,##0.0');
+    
+    // --- THIS IS THE CORRECTED LINE ---
+    valueElement.textContent = looker.visualizationUtils.formatValue(average, config.value_format);
+    
     valueElement.style.color = config.value_color;
 
     // --- 3. Draw the sparkline ---
@@ -100,16 +103,13 @@ looker.plugins.visualizations.add({
         const maxVal = Math.max(...sparklineData);
         const valRange = maxVal - minVal;
 
-        // Functions to scale data points to SVG coordinates
         const getX = (i) => (i / (sparklineData.length - 1)) * (width - padding * 2) + padding;
         const getY = (value) => height - ((value - minVal) / (valRange || 1)) * (height - padding * 2) - padding;
 
-        // Generate the SVG path string
         const pathString = sparklineData.map((d, i) => {
             return (i === 0 ? 'M' : 'L') + `${getX(i)},${getY(d)}`;
         }).join(' ');
         
-        // Create and add the path to the SVG
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', pathString);
         path.setAttribute('class', 'sparkline-path');
